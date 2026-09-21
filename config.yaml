@@ -1,0 +1,64 @@
+# MovieLens Recommendation System Configuration
+
+# 全局随机种子
+random_seed: 42
+
+# 数据路径
+data:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  splits_dir: data/splits
+  ratings_file: ratings.csv
+  movies_file: movies.csv
+  tags_file: tags.csv
+  links_file: links.csv
+
+# 数据划分
+split:
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  pos_threshold: 4.0
+  neg_sample_seed: 20260907
+  neg_sample_count: 100
+
+# 推荐参数
+recommendation:
+  top_k: 10
+  ndcg_k: 10
+  recall_k: 10
+
+# UserCF / ItemCF
+collaborative:
+  max_neighbors: 50
+  min_common_items: 5
+  similarity: cosine
+
+# LSH
+lsh:
+  num_perm: 128
+  threshold: 0.5
+  num_bands: 16
+
+# Spark ALS
+als:
+  rank: 50
+  max_iter: 15
+  reg_param: 0.1
+  alpha: 40.0
+
+# 流式处理
+streaming:
+  window_size: 1000
+  slide_interval: 100
+
+# 图推荐
+graph:
+  community_resolution: 1.0
+  walk_length: 10
+  num_walks: 80
+
+# 输出
+output:
+  results_dir: results
+  reports_dir: reports
