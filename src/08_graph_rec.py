@@ -99,13 +99,22 @@ def graph_based_recommend(B, user_id, movie_pr, user_communities, top_k=10):
     return sorted_candidates[:top_k]
 
 
-def recommend_batch_graph(B, users, movie_pr, user_communities, config, sample_size=500):
-    """批量生成图推荐"""
+def recommend_batch_graph(B, users, movie_pr, user_communities, config, test_users=None, sample_size=500):
+    """批量生成图推荐
+
+    test_users: 如果提供，只为这些用户生成推荐；否则随机采样
+    """
     np.random.seed(config["random_seed"])
-    sample_users = np.random.choice(list(users), size=min(sample_size, len(users)), replace=False)
+
+    if test_users is not None:
+        # 只为测试集用户生成推荐（过滤掉不在图中的用户）
+        target_users = [u for u in test_users if u in B]
+        print(f"为 {len(target_users)}/{len(test_users)} 位测试用户生成推荐")
+    else:
+        target_users = np.random.choice(list(users), size=min(sample_size, len(users)), replace=False)
 
     all_recommendations = {}
-    for user_id in sample_users:
+    for user_id in target_users:
         recs = graph_based_recommend(B, user_id, movie_pr, user_communities)
         if recs:
             all_recommendations[user_id] = recs
@@ -117,6 +126,7 @@ def main():
     config = load_config()
     splits_dir = config["data"]["splits_dir"]
     train_path = os.path.join(splits_dir, "train.csv")
+    test_path = os.path.join(splits_dir, "test.csv")
 
     if not os.path.exists(train_path):
         print("[ERROR] 请先运行 02_data_split.py")
@@ -131,21 +141,22 @@ def main():
     # PageRank
     user_pr, movie_pr = pagerank_features(B, config)
 
-    # 图推荐
-    recommendations = recommend_batch_graph(B, users, movie_pr, user_communities, config)
+    # 加载测试集用户
+    test_users = None
+    if os.path.exists(test_path):
+        test_users = pd.read_csv(test_path)["userId"].unique().tolist()
 
-    # 保存结果
+    # 图推荐（为测试集用户生成）
+    recommendations = recommend_batch_graph(B, users, movie_pr, user_communities, config, test_users=test_users)
+
+    # 保存结果（扁平格式，与 UserCF/ItemCF 一致）
     ensure_dir("results")
-    output = {
-        "num_communities": len(communities),
-        "num_users_with_recs": len(recommendations),
-        "sample_recommendations": {
-            str(k): [(int(m), float(s)) for m, s in v[:5]]
-            for k, v in list(recommendations.items())[:20]
-        },
+    rec_for_save = {
+        str(k): [(int(m), float(s)) for m, s in v]
+        for k, v in recommendations.items()
     }
     with open("results/graph_recommendations.json", "w") as f:
-        json.dump(output, f, indent=2, default=str)
+        json.dump(rec_for_save, f)
 
     # 保存 PageRank 特征
     pd.DataFrame(

@@ -10,7 +10,7 @@ from scipy.sparse import csr_matrix
 from utils import load_config, ensure_dir
 
 
-def train_als_implicit(train_data, config):
+def train_als_implicit(train_data, config, test_users=None):
     """使用 implicit 库训练 ALS 模型"""
     try:
         from implicit.als import AlternatingLeastSquares
@@ -49,13 +49,17 @@ def train_als_implicit(train_data, config):
     train_time = time.time() - start_time
     print(f"训练时间: {train_time:.2f}s")
 
-    # 为采样用户生成推荐
-    sample_size = min(5000, len(users))
-    np.random.seed(config["random_seed"])
-    sample_user_ids = np.random.choice(users, size=sample_size, replace=False)
+    # 为测试集用户生成推荐（如果提供），否则随机采样
+    if test_users is not None:
+        target_users = [u for u in test_users if u in user_map]
+        print(f"为 {len(target_users)}/{len(test_users)} 位测试用户生成推荐")
+    else:
+        sample_size = min(5000, len(users))
+        np.random.seed(config["random_seed"])
+        target_users = np.random.choice(users, size=sample_size, replace=False)
 
     recommendations = {}
-    for user_id in sample_user_ids:
+    for user_id in target_users:
         u_idx = user_map.get(user_id)
         if u_idx is None:
             continue
@@ -78,6 +82,7 @@ def main():
     config = load_config()
     splits_dir = config["data"]["splits_dir"]
     train_path = os.path.join(splits_dir, "train.csv")
+    test_path = os.path.join(splits_dir, "test.csv")
 
     if not os.path.exists(train_path):
         print("[ERROR] 请先运行 02_data_split.py")
@@ -89,7 +94,12 @@ def main():
     als_config = config["als"]
     print(f"参数: rank={als_config['rank']}, iterations={als_config['max_iter']}, reg={als_config['reg_param']}")
 
-    recommendations, train_time = train_als_implicit(train, config)
+    # 加载测试集用户
+    test_users = None
+    if os.path.exists(test_path):
+        test_users = pd.read_csv(test_path)["userId"].unique().tolist()
+
+    recommendations, train_time = train_als_implicit(train, config, test_users=test_users)
 
     # 保存结果
     ensure_dir("results")

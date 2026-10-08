@@ -63,16 +63,25 @@ def recommend_for_user(user_id, user_item_matrix, item_sim, user_map, item_map, 
     return [(idx_to_item[idx], float(scores[idx])) for idx in top_indices if scores[idx] > 0]
 
 
-def recommend_batch(user_item_matrix, item_sim, user_map, item_map, users, config, sample_size=1000):
-    """批量生成推荐"""
+def recommend_batch(user_item_matrix, item_sim, user_map, item_map, users, config, test_users=None, sample_size=1000):
+    """批量生成推荐
+
+    test_users: 如果提供，只为这些用户生成推荐；否则随机采样
+    """
     top_k = config["recommendation"]["top_k"]
     np.random.seed(config["random_seed"])
 
-    sample_users = np.random.choice(users, size=min(sample_size, len(users)), replace=False)
+    if test_users is not None:
+        # 只为测试集用户生成推荐（过滤掉不在训练集中的用户）
+        target_users = [u for u in test_users if u in user_map]
+        print(f"为 {len(target_users)}/{len(test_users)} 位测试用户生成推荐")
+    else:
+        target_users = np.random.choice(users, size=min(sample_size, len(users)), replace=False)
+
     idx_to_item = {v: k for k, v in item_map.items()}
 
     all_recommendations = {}
-    for user_id in sample_users:
+    for user_id in target_users:
         recs = recommend_for_user(user_id, user_item_matrix, item_sim, user_map, item_map, top_k)
         if recs:
             all_recommendations[user_id] = recs
@@ -84,6 +93,7 @@ def main():
     config = load_config()
     splits_dir = config["data"]["splits_dir"]
     train_path = os.path.join(splits_dir, "train.csv")
+    test_path = os.path.join(splits_dir, "test.csv")
 
     if not os.path.exists(train_path):
         print("[ERROR] 请先运行 02_data_split.py")
@@ -101,7 +111,12 @@ def main():
     data = np.ones(len(pos_ratings), dtype=np.float32)
     user_item_matrix = csr_matrix((data, (row, col)), shape=(len(users), len(items)))
 
-    recommendations = recommend_batch(user_item_matrix, item_sim, user_map, item_map, users, config)
+    # 加载测试集用户
+    test_users = None
+    if os.path.exists(test_path):
+        test_users = pd.read_csv(test_path)["userId"].unique().tolist()
+
+    recommendations = recommend_batch(user_item_matrix, item_sim, user_map, item_map, users, config, test_users=test_users)
 
     # 保存结果
     ensure_dir("results")

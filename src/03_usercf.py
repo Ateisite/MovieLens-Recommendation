@@ -98,19 +98,25 @@ def recommend(user_id, sim_matrix, user_item_matrix, user_map, item_map, items, 
     return item_scores[:top_k]
 
 
-def recommend_batch(sim_matrix, user_item_matrix, user_map, item_map, users, config, sample_size=1000):
-    """批量生成推荐（向量化，高效）"""
+def recommend_batch(sim_matrix, user_item_matrix, user_map, item_map, users, config, test_users=None, sample_size=1000):
+    """批量生成推荐（向量化，高效）
+
+    test_users: 如果提供，只为这些用户生成推荐；否则随机采样
+    """
     top_k = config["recommendation"]["top_k"]
     np.random.seed(config["random_seed"])
 
-    # 采样用户进行推荐
-    sample_users = np.random.choice(users, size=min(sample_size, len(users)), replace=False)
+    if test_users is not None:
+        # 只为测试集用户生成推荐（过滤掉不在训练集中的用户）
+        target_users = [u for u in test_users if u in user_map]
+        print(f"为 {len(target_users)}/{len(test_users)} 位测试用户生成推荐")
+    else:
+        target_users = np.random.choice(users, size=min(sample_size, len(users)), replace=False)
 
     all_recommendations = {}
-    item_list = item_map  # item_map: movieId -> index
     idx_to_item = {v: k for k, v in item_map.items()}
 
-    for user_id in sample_users:
+    for user_id in target_users:
         u_idx = user_map[user_id]
         scores = (sim_matrix[u_idx] @ user_item_matrix).toarray().flatten()
         seen = set(user_item_matrix[u_idx].nonzero()[1])
@@ -131,6 +137,7 @@ def main():
     config = load_config()
     splits_dir = config["data"]["splits_dir"]
     train_path = os.path.join(splits_dir, "train.csv")
+    test_path = os.path.join(splits_dir, "test.csv")
 
     if not os.path.exists(train_path):
         print("[ERROR] 请先运行 02_data_split.py")
@@ -143,8 +150,13 @@ def main():
     sim = compute_user_similarity_vectorized(matrix, config)
     print(f"用户相似度矩阵: {sim.shape}, 非零元素: {sim.nnz:,}")
 
-    # 批量生成推荐
-    recommendations = recommend_batch(sim, matrix, user_map, item_map, users, config)
+    # 加载测试集用户
+    test_users = None
+    if os.path.exists(test_path):
+        test_users = pd.read_csv(test_path)["userId"].unique().tolist()
+
+    # 批量生成推荐（为测试集用户生成）
+    recommendations = recommend_batch(sim, matrix, user_map, item_map, users, config, test_users=test_users)
 
     # 保存结果
     ensure_dir("results")
