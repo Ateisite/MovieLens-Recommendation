@@ -50,11 +50,12 @@ def precision_at_k(recommended, relevant, k):
     return len(recommended & relevant) / len(recommended)
 
 
-def evaluate_model(recommendations, test_data, config):
+def evaluate_model(recommendations, test_data, config, candidates=None):
     """评估模型整体表现
-    
+
     recommendations: dict {user_id: [(item_id, score), ...] 或 [item_id, ...]}
     test_data: DataFrame with columns [userId, movieId, rating]
+    candidates: dict {user_id: {"positive": set, "negative": set, "all": set}}，如果提供则在候选集内评估
     """
     k = config["recommendation"]["ndcg_k"]
     threshold = config["split"]["pos_threshold"]
@@ -90,7 +91,19 @@ def evaluate_model(recommendations, test_data, config):
         if not relevant:
             continue
 
-        relevances = [1 if item in relevant else 0 for item in rec_item_ids]
+        # 如果提供了候选集，只在候选集内评估
+        if candidates and user_id in candidates:
+            candidate_set = set(candidates[user_id]["all"])
+            # 过滤推荐列表，只保留候选集中的物品
+            rec_item_ids = [item for item in rec_item_ids if item in candidate_set]
+            # 相关性：正样本为1，负样本为0
+            relevances = [1 if item in relevant else 0 for item in rec_item_ids]
+        else:
+            relevances = [1 if item in relevant else 0 for item in rec_item_ids]
+
+        if len(rec_item_ids) == 0:
+            continue
+
         ndcg_scores.append(ndcg_at_k(relevances, k))
         recall_scores.append(recall_at_k(rec_item_ids, relevant, k))
         precision_scores.append(precision_at_k(rec_item_ids, relevant, k))
@@ -119,12 +132,29 @@ def evaluate_all_models(config):
     """评价所有模型的推荐结果"""
     splits_dir = config["data"]["splits_dir"]
     test_path = os.path.join(splits_dir, "test.csv")
+    candidates_path = os.path.join(splits_dir, "candidates.json")
 
     if not os.path.exists(test_path):
         print("[ERROR] 测试集不存在，请先运行 02_data_split.py")
         return
 
     test_data = pd.read_csv(test_path)
+
+    # 加载候选集（如果存在）
+    candidates = None
+    if os.path.exists(candidates_path):
+        print(f"加载候选集: {candidates_path}")
+        with open(candidates_path, "r") as f:
+            candidates_raw = json.load(f)
+        # 转换格式：键转为 int，值转为 set
+        candidates = {}
+        for user_id, items in candidates_raw.items():
+            candidates[int(user_id)] = {
+                "positive": set(items["positive"]),
+                "negative": set(items["negative"]),
+                "all": set(items["all"]),
+            }
+        print(f"候选集用户数: {len(candidates)}")
 
     model_files = {
         "UserCF": "results/usercf_recommendations.json",
@@ -154,7 +184,7 @@ def evaluate_all_models(config):
                 else:
                     formatted_recs[int(user_id)] = [(item, 1.0) for item in items]
 
-        results = evaluate_model(formatted_recs, test_data, config)
+        results = evaluate_model(formatted_recs, test_data, config, candidates=candidates)
         all_results[model_name] = results
         print(f"\n{model_name}:")
         for metric, value in results.items():

@@ -24,7 +24,8 @@ def train_als_implicit(train_data, config, test_users=None):
 
     # 构建用户-物品矩阵（只保留正反馈）
     pos_data = train_data[train_data["rating"] >= threshold]
-    users = pos_data["userId"].unique()
+    # 包含所有用户，不只是有正反馈的用户
+    users = train_data["userId"].unique()
     items = pos_data["movieId"].unique()
     user_map = {u: i for i, u in enumerate(users)}
     item_map = {m: i for i, m in enumerate(items)}

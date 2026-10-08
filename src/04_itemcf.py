@@ -14,11 +14,15 @@ from utils import load_config, ensure_dir
 
 
 def build_item_similarity(ratings, config):
-    """构建物品相似度矩阵（稀疏操作）"""
+    """构建物品相似度矩阵（稀疏操作）
+
+    注意：包含所有用户（即使没有正反馈），确保测试用户都能被推荐
+    """
     threshold = config["split"]["pos_threshold"]
     pos_ratings = ratings[ratings["rating"] >= threshold]
 
-    users = pos_ratings["userId"].unique()
+    # 包含所有用户，不只是有正反馈的用户
+    users = ratings["userId"].unique()
     items = pos_ratings["movieId"].unique()
     user_map = {u: i for i, u in enumerate(users)}
     item_map = {m: i for i, m in enumerate(items)}
