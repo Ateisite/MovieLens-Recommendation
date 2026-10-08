@@ -33,7 +33,7 @@ def data_quality_report(ratings, movies, tags):
 
     # 类型校验
     assert ratings["rating"].between(0.5, 5.0).all(), "评分超出范围"
-    assert (ratings["timestamp"] > 0).all(), "时间戳异常"
+    assert (ratings["timestamp"] > 0).all(), "时间戳异常")
     print("  数据类型校验通过 ✓")
 
 
@@ -57,24 +57,37 @@ def descriptive_statistics(ratings, movies, tags):
     return stats
 
 
-def compute_baseline_ndcg(ratings, config):
-    """计算热门推荐基线的 NDCG@10"""
+def compute_baseline_ndcg(config):
+    """计算热门推荐基线的 NDCG@10
+    
+    修复数据泄漏：热门电影从训练集计算，NDCG 在测试集评估。
+    """
     threshold = config["split"]["pos_threshold"]
     top_k = config["recommendation"]["top_k"]
+    splits_dir = config["data"]["splits_dir"]
+    train_path = os.path.join(splits_dir, "train.csv")
+    test_path = os.path.join(splits_dir, "test.csv")
 
-    # 热门电影（按正反馈次数排序）
-    pos_ratings = ratings[ratings["rating"] >= threshold]
+    if not os.path.exists(train_path) or not os.path.exists(test_path):
+        print("[WARN] 训练集/测试集不存在，请先运行 02_data_split.py")
+        return 0.0, []
+
+    # 从训练集计算热门电影（防止数据泄漏）
+    train = pd.read_csv(train_path)
+    pos_train = train[train["rating"] >= threshold]
     popular_movies = (
-        pos_ratings.groupby("movieId")
+        pos_train.groupby("movieId")
         .size()
         .sort_values(ascending=False)
         .head(top_k)
         .index.tolist()
     )
+    print(f"  热门电影（训练集计算）: {len(pos_train):,} 条正反馈")
 
-    # 按用户计算 NDCG@K
+    # 在测试集上评估
+    test = pd.read_csv(test_path)
     user_pos_items = (
-        ratings[ratings["rating"] >= threshold]
+        test[test["rating"] >= threshold]
         .groupby("userId")["movieId"]
         .apply(set)
         .to_dict()
@@ -92,6 +105,7 @@ def compute_baseline_ndcg(ratings, config):
     mean_ndcg = np.mean(ndcg_scores) if ndcg_scores else 0.0
     print(f"\n=== 热门推荐基线 ===")
     print(f"  NDCG@{top_k}: {mean_ndcg:.4f}")
+    print(f"  测试用户: {len(user_pos_items):,}")
     print(f"  目标: 提升 ≥ 10% (即 ≥ {mean_ndcg * 1.1:.4f})")
 
     # 保存结果
@@ -99,7 +113,8 @@ def compute_baseline_ndcg(ratings, config):
     with open("results/baseline_ndcg.txt", "w", encoding="utf-8") as f:
         f.write(f"Baseline NDCG@{top_k}: {mean_ndcg:.4f}\n")
         f.write(f"Target NDCG@{top_k} (+10%): {mean_ndcg * 1.1:.4f}\n")
-        f.write(f"Top {top_k} popular movies: {popular_movies}\n")
+        f.write(f"Test users: {len(user_pos_items)}\n")
+        f.write(f"Top {top_k} popular movies (from train): {popular_movies}\n")
     print(f"  结果已保存到 results/baseline_ndcg.txt")
 
     return mean_ndcg, popular_movies
@@ -117,7 +132,7 @@ def main():
 
     data_quality_report(ratings, movies, tags)
     descriptive_statistics(ratings, movies, tags)
-    compute_baseline_ndcg(ratings, config)
+    compute_baseline_ndcg(config)
 
     print("\n[Done] 任务一完成")
 

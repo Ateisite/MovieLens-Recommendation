@@ -10,8 +10,11 @@ from scipy.sparse import csr_matrix
 from utils import load_config, ensure_dir
 
 
-def train_als_implicit(train_data, config, test_users=None):
-    """使用 implicit 库训练 ALS 模型"""
+def train_als_implicit(train_data, config, test_users=None, candidate_items=None):
+    """使用 implicit 库训练 ALS 模型
+
+    candidate_items: dict {user_id: [movieId, ...]}，如果提供则在候选集内排序
+    """
     try:
         from implicit.als import AlternatingLeastSquares
     except ImportError:
@@ -59,22 +62,47 @@ def train_als_implicit(train_data, config, test_users=None):
         np.random.seed(config["random_seed"])
         target_users = np.random.choice(users, size=sample_size, replace=False)
 
+    # 为测试用户生成推荐（支持候选集内排序）
+    if test_users is not None:
+        target_users = [u for u in test_users if u in user_map]
+        print(f"为 {len(target_users)}/{len(test_users)} 位测试用户生成推荐")
+    else:
+        sample_size = min(5000, len(users))
+        np.random.seed(config["random_seed"])
+        target_users = np.random.choice(users, size=sample_size, replace=False)
+
     recommendations = {}
     for user_id in target_users:
         u_idx = user_map.get(user_id)
         if u_idx is None:
             continue
-        recs = model.recommend(
-            userid=u_idx,
-            user_items=user_item_matrix[u_idx],
-            N=top_k,
-            filter_already_liked_items=True,
-        )
-        # recs 返回 (item_indices, scores)，item_indices 是模型内部索引
-        recommendations[str(user_id)] = [
-            {"movieId": int(items[idx]), "score": float(score)}
-            for idx, score in zip(recs[0], recs[1]) if idx < len(items)
-        ]
+
+        # 获取候选集物品索引
+        candidate_indices = [item_map[mid] for mid in candidate_items if mid in item_map] if candidate_items else None
+
+        if candidate_indices:
+            # 在候选集内评分排序
+            user_factors = model.user_factors[u_idx]
+            item_factors = model.item_factors[candidate_indices]
+            scores = item_factors @ user_factors
+            # 按分数排序取 Top-K
+            top_indices = np.argsort(-scores)[:top_k]
+            recommendations[str(user_id)] = [
+                {"movieId": int(items[candidate_indices[idx]]), "score": float(scores[idx])}
+                for idx in top_indices
+            ]
+        else:
+            # 全量推荐
+            recs = model.recommend(
+                userid=u_idx,
+                user_items=user_item_matrix[u_idx],
+                N=top_k,
+                filter_already_liked_items=True,
+            )
+            recommendations[str(user_id)] = [
+                {"movieId": int(items[idx]), "score": float(score)}
+                for idx, score in zip(recs[0], recs[1]) if idx < len(items)
+            ]
 
     return recommendations, train_time
 
@@ -100,7 +128,16 @@ def main():
     if os.path.exists(test_path):
         test_users = pd.read_csv(test_path)["userId"].unique().tolist()
 
-    recommendations, train_time = train_als_implicit(train, config, test_users=test_users)
+    # 加载候选集（如果存在）
+    candidate_items = None
+    candidates_path = os.path.join(splits_dir, "candidates.json")
+    if os.path.exists(candidates_path):
+        with open(candidates_path, "r") as f:
+            candidates_raw = json.load(f)
+        candidate_items = {int(k): v["all"] for k, v in candidates_raw.items()}
+        del candidates_raw
+
+    recommendations, train_time = train_als_implicit(train, config, test_users=test_users, candidate_items=candidate_items)
 
     # 保存结果
     ensure_dir("results")
