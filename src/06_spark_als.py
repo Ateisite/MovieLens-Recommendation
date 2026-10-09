@@ -25,17 +25,29 @@ def train_als_implicit(train_data, config, test_users=None, candidate_items=None
     top_k = config["recommendation"]["top_k"]
     threshold = config["split"]["pos_threshold"]
 
-    # 构建用户-物品矩阵（只保留正反馈）
-    pos_data = train_data[train_data["rating"] >= threshold]
+    # 内存优化：使用 numpy 数组直接构建稀疏矩阵，避免 DataFrame 复制
+    ratings = train_data["rating"].values
+    user_ids = train_data["userId"].values
+    movie_ids = train_data["movieId"].values
+
+    # 筛选正反馈（使用 numpy 布尔索引，不复制 DataFrame）
+    pos_mask = ratings >= threshold
+    pos_user_ids = user_ids[pos_mask]
+    pos_movie_ids = movie_ids[pos_mask]
+
     # 包含所有用户，不只是有正反馈的用户
-    users = train_data["userId"].unique()
-    items = pos_data["movieId"].unique()
+    users = np.unique(user_ids)
+    items = np.unique(pos_movie_ids)
     user_map = {u: i for i, u in enumerate(users)}
     item_map = {m: i for i, m in enumerate(items)}
 
-    row = pos_data["userId"].map(user_map).values
-    col = pos_data["movieId"].map(item_map).values
-    data = np.ones(len(pos_data), dtype=np.float32)
+    # 使用 numpy 数组映射（避免 pandas map）
+    row = np.array([user_map[u] for u in pos_user_ids], dtype=np.int32)
+    col = np.array([item_map[m] for m in pos_movie_ids], dtype=np.int32)
+    data = np.ones(len(row), dtype=np.float32)
+
+    # 释放原始数据内存
+    del ratings, user_ids, movie_ids, pos_mask, pos_user_ids, pos_movie_ids
 
     user_item_matrix = csr_matrix((data, (row, col)), shape=(len(users), len(items)))
     print(f"用户-物品矩阵: {user_item_matrix.shape}, 非零元素: {user_item_matrix.nnz:,}")
@@ -78,13 +90,17 @@ def train_als_implicit(train_data, config, test_users=None, candidate_items=None
             continue
 
         # 获取候选集物品索引
-        candidate_indices = [item_map[mid] for mid in candidate_items if mid in item_map] if candidate_items else None
+        if candidate_items and user_id in candidate_items:
+            candidate_indices = [item_map[mid] for mid in candidate_items[user_id] if mid in item_map]
+        else:
+            candidate_indices = None
 
         if candidate_indices:
-            # 在候选集内评分排序
+            # 在候选集内评分排序（内存优化：逐个计算，不创建大数组）
             user_factors = model.user_factors[u_idx]
-            item_factors = model.item_factors[candidate_indices]
-            scores = item_factors @ user_factors
+            # 只取候选物品的因子
+            cand_factors = model.item_factors[candidate_indices]
+            scores = cand_factors @ user_factors
             # 按分数排序取 Top-K
             top_indices = np.argsort(-scores)[:top_k]
             recommendations[str(user_id)] = [

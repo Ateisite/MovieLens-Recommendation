@@ -4,7 +4,7 @@
 random_seed: 42
 
 # 数据采样（设为 0 使用全量数据；>0 则只取前 N 条评分，便于快速演示）
-sample_ratings: 2000000
+sample_ratings: 1500000
 
 # 数据路径
 data:
