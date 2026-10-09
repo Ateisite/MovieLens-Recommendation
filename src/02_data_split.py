@@ -58,25 +58,32 @@ def generate_candidates_with_negatives(train, test, config):
     threshold = config["split"]["pos_threshold"]
     neg_count = config["split"]["neg_sample_count"]
 
-    # 训练集中所有电影
-    all_movies = set(train["movieId"].unique())
+    # 训练集中所有电影（用 numpy 数组，更省内存）
+    all_movies = train["movieId"].unique()
 
     # 每位测试用户的候选集
     candidates = {}
     test_users = test["userId"].unique()
 
+    # 预计算每个用户的已交互电影（避免重复查询）
+    user_interacted = {}
+    for user_id in test_users:
+        user_train = set(train[train["userId"] == user_id]["movieId"])
+        user_test_set = set(test[test["userId"] == user_id]["movieId"])
+        user_interacted[user_id] = user_train | user_test_set
+
     for user_id in test_users:
         user_test = test[test["userId"] == user_id]
         pos_items = set(user_test[user_test["rating"] >= threshold]["movieId"])
 
-        # 用户已交互的电影（训练集 + 测试集）
-        user_train_movies = set(train[train["userId"] == user_id]["movieId"])
-        interacted = user_train_movies | set(user_test["movieId"])
+        # 负采样：随机选择用户未交互的电影
+        interacted = user_interacted[user_id]
+        # 使用 numpy 过滤（比 set 操作更省内存）
+        neg_mask = ~np.isin(all_movies, list(interacted))
+        neg_candidates = all_movies[neg_mask]
 
-        # 负采样：从用户未交互的电影中随机选取
-        neg_candidates = list(all_movies - interacted)
         if len(neg_candidates) <= neg_count:
-            neg_items = neg_candidates
+            neg_items = neg_candidates.tolist()
         else:
             neg_items = np.random.choice(neg_candidates, size=neg_count, replace=False).tolist()
 
@@ -102,13 +109,14 @@ def main():
     ensure_dir(splits_dir)
 
     raw_dir = config["data"]["raw_dir"]
-    ratings = pd.read_csv(os.path.join(raw_dir, config["data"]["ratings_file"]))
-
-    # 数据采样（便于快速演示）
     sample_n = config.get("sample_ratings", 0)
-    if sample_n and sample_n < len(ratings):
-        ratings = ratings.sample(n=sample_n, random_state=config["random_seed"]).reset_index(drop=True)
-        print(f"已采样 {sample_n:,} 条评分")
+
+    # 内存优化：如果设置了采样，只读前 N 行
+    if sample_n and sample_n > 0:
+        ratings = pd.read_csv(os.path.join(raw_dir, config["data"]["ratings_file"]), nrows=sample_n)
+        print(f"已读取前 {len(ratings):,} 条评分（采样）")
+    else:
+        ratings = pd.read_csv(os.path.join(raw_dir, config["data"]["ratings_file"]))
 
     train, val, test = temporal_split_per_user(ratings, config)
 

@@ -137,6 +137,7 @@ def evaluate_all_models(config):
         "ItemCF": "results/itemcf_recommendations.json",
         "ALS": "results/als_recommendations.json",
         "Graph": "results/graph_recommendations.json",
+        "NCF": "results/ncf_recommendations.json",
     }
 
     all_results = {}
