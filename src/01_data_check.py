@@ -33,7 +33,7 @@ def data_quality_report(ratings, movies, tags):
 
     # 类型校验
     assert ratings["rating"].between(0.5, 5.0).all(), "评分超出范围"
-    assert (ratings["timestamp"] > 0).all(), "时间戳异常")
+    assert (ratings["timestamp"] > 0).all(), "时间戳异常"
     print("  数据类型校验通过 ✓")
 
 
