@@ -20,10 +20,13 @@
 > - 2026-10-09 | GPT (Codex) | 修复NCF代码：全局负采样+候选集过滤+配置段：大概率差一口气，建议混合+增数据双管齐下
 > - 2026-10-09 | Claude (Opus 5) | **NCF 训练成功！NDCG@10 = 0.8227，超过基线 68%**
 > - 2026-10-13 | Claude (Opus 5) | 设计消融实验
-> - 2026-10-14 | GPT+C Claude | 消融实验三方对齐：Claude指出评估框架不一致问题→改用候选集基线0.795→ALS+5.7%
+> - 2026-10-14 | GPT+C Claude | 消融实验三方对齐+改用候选集基线0.795+ALS+5.7%n> - 2026-10-14 | GPT (Codex) | 提出Agent方案A/B/C，推荐CLI方案
 > - 2026-10-14 | Claude (Sonnet 5) | 消融实验完成：Baseline 0.795 → ALS 0.841(+5.7%) → NCF 0.823(+3.5%)
 > - 2026-10-14 | Claude (Sonnet 5) | 项目报告完成 + README 数据修正 + config 对齐
 > - 2026-10-14 | Claude (Sonnet 5) | Agent 改造方案设计：LangChain + 三工具 + FastAPI
+> - 2026-10-14 | GPT (Codex) | 提出 Agent 三方案 (CLI/LangChain/FastAPI)，推荐 CLI
+> - 2026-10-14 | 人类 | 项目目标=求职展示，非课设要求
+> - 2026-10-14 | Claude (Sonnet 5) | 评价 Codex 方案：CLI 务实但求职展示有限，推荐 LangChain
 ## 协作模式说明
 
 > **本文件是人类 + GPT + Claude 三方协作的工作区。**
@@ -1068,4 +1071,82 @@ Claude 指出：消融实验应使用候选集内热门基线，确保公平对�
 | 候选集内热门基线 | 0.7950 | — | — |
 | ALS | 0.8405 | +5.7% | +69.7% |
 | NCF | 0.8227 | +3.5% | +66.1% |
+
+
+## GPT 的 Agent 方案（2026-10-14）
+
+### 背景
+
+推荐系统已达标（ALS=0.8405，+69.7%），现在做 Agent 包装。参考 llm-course-project 的模块5（代码修复Agent），BigData 项目模块5联系系统/Agent。
+
+### 三个方案
+
+| 方案 | 描述 | 工作量 | LLM依赖 |
+|------|------|--------|---------|
+| A: CLI Agent | 命令行对话，规则匹配 | 1-2天 | 无 |
+| B: LangChain+本地LLM | ReAct Agent框架 | 2-3天 | Qwen/DeepSeek |
+| C: FastAPI+Agent | REST API + 对话Agent | 3-5天 | 可选 |
+
+### Agent 架构
+
+输入: 自然语言查询 → Agent 决策 → 调用工具 → 生成回答
+
+**工具集：**
+- search_movie(title) — 按标题搜索
+- recommend(user_id, filters) — ALS 推荐
+- explain(movie_id, prefs) — 生成推荐理由
+- get_history(user_id) — 获取用户历史
+
+**记忆：**
+- ConversationBufferMemory — 对话历史
+- UserProfile — 累积偏好（类型/演员等）
+
+**推荐方案 A（CLI）的原因：**
+1. BigData 课设核心是推荐算法，Agent 是展示模块
+2. 无需 LLM 依赖，可复现性强
+3. ALS 已加载，直接包装为工具即可
+4. 面试展示价值：Tool Use + Memory + 可解释性
+
+## Claude 对 Codex Agent 方案的评价（2026-10-14）
+
+### 项目目标澄清
+
+**项目目标 = 求职展示**，非课设要求。Agent 是核心展示模块。
+
+### Codex 方案评价
+
+#### ✅ 做得好的
+
+| 方面 | 评价 |
+|------|------|
+| 务实 | CLI 无需 LLM，可复现性强 |
+| 快速 | 1-2 天完成 |
+| 聚焦 | 核心是推荐算法，Agent 不喧宾夺主 |
+| 展示点 | Tool Use + Memory + 可解释性 都有 |
+
+#### ⚠️ 不足
+
+| 方面 | 说明 |
+|------|------|
+| 求职展示 | 纯 CLI 对求职帮助有限 |
+| 灵活性 | 规则匹配有限，复杂查询处理不了 |
+
+### 最终决定
+
+**选择 LangChain 方案**，原因：
+1. 项目目标 = 求职展示 > 课设交付
+2. LangChain + 真实 LLM 更有展示价值
+3. 能展示 Tool Use + 多步推理 + 可解释性
+4. 面试时能讲"我用 LLM Agent 包装了推荐系统"
+
+### 方案对比
+
+| 维度 | Codex CLI | Claude LangChain |
+|------|-----------|------------------|
+| 课设适用 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
+| 求职展示 | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| 实现时间 | 1-2 天 | 6-9 小时 |
+| 可复现性 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
+
+**结论：CLI 务实但求职展示有限，推荐 LangChain 方案。**
 
