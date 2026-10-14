@@ -1,0 +1,2 @@
+Baseline NDCG@10: 0.4954
+Target: 0.5449
