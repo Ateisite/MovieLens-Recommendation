@@ -16,8 +16,8 @@ load_dotenv()
 def create_llm():
     """创建 LLM 实例"""
     api_key = os.getenv("API_KEY")
-    base_url = os.getenv("BASE_URL", "https://api.deepseek.com/v1")
-    model = os.getenv("MODEL", "deepseek-chat")
+    base_url = os.getenv("BASE_URL", "https://api.longcat.chat/openai/v1")
+    model = os.getenv("MODEL", "LongCat-2.0")
 
     if not api_key or api_key == "sk-your-deepseek-key":
         raise ValueError(
@@ -144,3 +144,4 @@ def interactive_chat():
 
 if __name__ == "__main__":
     interactive_chat()
+

@@ -1,7 +1,11 @@
 """电影搜索工具"""
 
+import os
 import pandas as pd
 from langchain_core.tools import tool
+
+# 项目根目录
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 # 加载电影数据
@@ -11,7 +15,7 @@ _movies_df = None
 def _get_movies_df():
     global _movies_df
     if _movies_df is None:
-        _movies_df = pd.read_csv("data/raw/movies.csv")
+        _movies_df = pd.read_csv(os.path.join(PROJECT_ROOT, "data", "raw", "movies.csv"))
     return _movies_df
 
 
@@ -63,7 +67,9 @@ def get_movie_details(movie_id: int) -> str:
 
 
 if __name__ == "__main__":
-    # 测试
-    print(search_movie.invoke("星际穿越"))
+    # 测试（使用英文标题）
+    print("=== search_movie('Interstellar') ===")
+    print(search_movie.invoke({"title": "Interstellar"}))
     print()
-    print(get_movie_details.invoke(91266))
+    print("=== get_movie_details(109487) ===")
+    print(get_movie_details.invoke({"movie_id": 109487}))

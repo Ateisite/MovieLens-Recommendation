@@ -1,9 +1,13 @@
 """ALS 推荐工具"""
 
+import os
 import json
 import numpy as np
 import pandas as pd
 from langchain_core.tools import tool
+
+# 项目根目录
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 # 全局变量存储 ALS 模型数据
@@ -16,11 +20,11 @@ def _load_als_data():
         return _als_data
 
     # 加载推荐结果
-    with open("results/als_recommendations.json", "r") as f:
+    with open(os.path.join(PROJECT_ROOT, "results", "als_recommendations.json"), "r") as f:
         recs = json.load(f)
 
     # 加载电影数据
-    movies_df = pd.read_csv("data/raw/movies.csv")
+    movies_df = pd.read_csv(os.path.join(PROJECT_ROOT, "data", "raw", "movies.csv"))
 
     _als_data = {
         "recommendations": recs["recommendations"],
@@ -57,7 +61,7 @@ def recommend(user_id: int) -> str:
 
 @tool
 def get_user_history(user_id: int) -> str:
-    """获取用户历史评分记录。
+    """获取用户用户历史评分记录。
 
     Args:
         user_id: 用户 ID
@@ -66,13 +70,13 @@ def get_user_history(user_id: int) -> str:
         用户历史评分字符串
     """
     try:
-        train = pd.read_csv("data/splits/train.csv")
+        train = pd.read_csv(os.path.join(PROJECT_ROOT, "data", "splits", "train.csv"))
         user_ratings = train[train["userId"] == user_id]
 
         if user_ratings.empty:
             return f"用户 {user_id} 没有历史记录"
 
-        movies = pd.read_csv("data/raw/movies.csv")
+        movies = pd.read_csv(os.path.join(PROJECT_ROOT, "data", "raw", "movies.csv"))
         movie_titles = movies.set_index("movieId")["title"].to_dict()
 
         output = [f"用户 {user_id} 的历史评分：\n"]
@@ -87,6 +91,11 @@ def get_user_history(user_id: int) -> str:
 
 if __name__ == "__main__":
     # 测试
-    print(recommend.invoke(1))
+    print("=== recommend(1) ===")
+    print(recommend.invoke({"user_id": 1}))
     print()
-    print(get_user_history.invoke(1))
+    print("=== get_user_history(1) ===")
+    print(get_user_history.invoke({"user_id": 1}))
+
+
+

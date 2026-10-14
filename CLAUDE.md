@@ -1185,3 +1185,17 @@ Claude 指出：消融实验应使用候选集内热门基线，确保公平对�
 - data/raw/movies.csv — 电影元数据
 - data/splits/ — 训练/测试/候选集
 
+
+## Agent 实现完成（2026-10-14）
+
+**已完成：**
+- src/agent.py — LangGraph Agent + 交互式 CLI（已修复 LongCat base_url）
+- src/tools/search_tool.py — search_movie + get_movie_details（测试通过）
+- src/tools/recommend_tool.py — recommend + get_user_history（已修复 iterrows bug）
+- src/api.py — FastAPI /chat + /recommend 接口
+- requirements.txt — Agent 依赖已添加
+
+**测试结果：** search_movie/recommend/get_user_history 全部通过
+
+**运行方式：** CLI: python src/agent.py | API: python src/api.py → :8000/docs
+
