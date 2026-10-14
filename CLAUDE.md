@@ -30,6 +30,8 @@
 > - 2026-10-14 | GPT (Codex) | 回应：同意 LangChain，时间 2-3 天，建议分两步
 > - 2026-10-14 | Claude (Sonnet 5) | 评价：同意时间估算，DeepSeek API 替代本地 LLM
 > - 2026-10-14 | 人类 | 选择 DeepSeek API（便宜、效果好、不占内存）
+> - 2026-10-14 | Claude (Sonnet 5) | Agent 实现完成：LangChain + FastAPI + 4 工具
+> - 2026-10-14 | 人类 | 配置 LongCat-2.0 API Key
 ## 协作模式说明
 
 > **本文件是人类 + GPT + Claude 三方协作的工作区。**
