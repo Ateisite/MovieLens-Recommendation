@@ -1,57 +1,32 @@
-# Python cache
-__pycache__/
-*.py[cod]
-*.class
-*.so
-.Pytest_cache/
-.pytest_cache/
-pytest-*.xml
-
-# Virtual environments
-venv/
+# 环境
+.env
 .venv/
-env/
-ENV/
+venv/
+__pycache__/
+*.pyc
+
+# 数据（不提交原始数据和结果）
+data/raw/*.csv
+data/raw/*.zip
+data/splits/*.csv
+data/splits/*.json
+results/*.json
+results/*.csv
+
+# 但保留目录结构
+!data/raw/.gitkeep
+!data/splits/.gitkeep
+!results/.gitkeep
 
 # IDE
 .vscode/
 .idea/
 *.swp
-*.swo
-*~
-
-# Data files (MovieLens dataset - download separately)
-data/raw/*.csv
-data/raw/*.zip
-data/processed/*.csv
-data/processed/*.parquet
-data/splits/*.csv
-data/splits/*.json
-data/splits/*.parquet
-dataset/*.zip
-dataset/*.csv
-
-# Results (large output files)
-results/*.csv
-results/*.parquet
-results/*.json
-results/*.txt
-!results/.gitkeep
-
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb
 
 # OS
 Thumbs.db
 Desktop.ini
 
-# Cloud sync
-*.nssyncsc
-~$*
-
-# Distribution / packaging
-dist/
-build/
-*.egg-info/
-*.egg
+# 大文件
+*.pptx
+*.pdf
