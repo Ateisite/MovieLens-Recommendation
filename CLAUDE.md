@@ -23,6 +23,7 @@
 > - 2026-10-14 | GPT+C Claude | 消融实验三方对齐：Claude指出评估框架不一致问题→改用候选集基线0.795→ALS+5.7%
 > - 2026-10-14 | Claude (Sonnet 5) | 消融实验完成：Baseline 0.795 → ALS 0.841(+5.7%) → NCF 0.823(+3.5%)
 > - 2026-10-14 | Claude (Sonnet 5) | 项目报告完成 + README 数据修正 + config 对齐
+> - 2026-10-14 | Claude (Sonnet 5) | Agent 改造方案设计：LangChain + 三工具 + FastAPI
 ## 协作模式说明
 
 > **本文件是人类 + GPT + Claude 三方协作的工作区。**
@@ -244,6 +245,76 @@ cat results/ablation_study.csv
    - Tool Use（推荐 + 搜索 + 详情）
    - 多步推理
    - 可解释性
+
+## Agent 改造方案（2026-10-14 设计）
+
+### 架构
+
+```
+用户输入："我想看类似《星际穿越》但轻松一点的科幻片"
+    ↓
+[意图识别] LLM 解析需求
+    ↓
+[规划器] Agent 决定调用哪些工具
+    ↓
+[工具执行] 
+  ├─ Tool 1: search_movie("星际穿越") → 获取电影 ID
+  ├─ Tool 2: get_similar_movies(movie_id) → 获取相似电影
+  ├─ Tool 3: recommend(user_id) → 个性化推荐
+    ↓
+[结果综合] LLM 生成推荐理由
+    ↓
+输出：推荐列表 + 理由
+```
+
+### 三个工具
+
+| Tool | 功能 | 输入 → 输出 |
+|------|------|-------------|
+| `search_movie` | 搜索电影 | "星际穿越" → movie details |
+| `recommend` | ALS 个性化推荐 | user_id → Top-10 推荐 |
+| `get_movie_details` | 获取电影信息 | movie_id → title/genres/rating |
+
+### 文件结构
+
+```
+src/
+├── agent.py          # Agent 主逻辑
+├── tools/
+│   ├── search_tool.py    # 电影搜索
+│   ├── recommend_tool.py # ALS 推荐
+│   └── detail_tool.py    # 电影详情
+├── memory.py         # 用户记忆
+└── api.py           # FastAPI 服务
+```
+
+### 核心展示点
+
+| 能力 | 说明 |
+|------|------|
+| **Tool Use** | Agent 自主决定调哪个工具 |
+| **多步推理** | 复杂查询分解为多步 |
+| **可解释性** | 给出推荐理由 |
+| **记忆** | 记住用户偏好 |
+
+### 技术选型
+
+| 组件 | 选择 |
+|------|------|
+| Agent 框架 | LangChain |
+| LLM | 本地模型 (Ollama) 或 API |
+| 服务 | FastAPI |
+| 推荐引擎 | ALS (已训练好) |
+
+### 时间估算
+
+| 任务 | 时间 |
+|------|------|
+| 三个 Tool 实现 | 2-3 小时 |
+| Agent 主逻辑 | 2-3 小时 |
+| FastAPI 服务 | 1 小时 |
+| 测试调试 | 1-2 小时 |
+| **总计** | **6-9 小时** |
 
 **理由：** CF 方法在稀疏数据上有天花板，Agent 架构能力可独立展示。
 
