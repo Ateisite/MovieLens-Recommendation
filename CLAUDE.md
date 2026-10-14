@@ -20,13 +20,16 @@
 > - 2026-10-09 | GPT (Codex) | 修复NCF代码：全局负采样+候选集过滤+配置段：大概率差一口气，建议混合+增数据双管齐下
 > - 2026-10-09 | Claude (Opus 5) | **NCF 训练成功！NDCG@10 = 0.8227，超过基线 68%**
 > - 2026-10-13 | Claude (Opus 5) | 设计消融实验
-> - 2026-10-14 | GPT+C Claude | 消融实验三方对齐+改用候选集基线0.795+ALS+5.7%n> - 2026-10-14 | GPT (Codex) | 提出Agent方案A/B/C，推荐CLI方案
+> - 2026-10-14 | GPT+C Claude | 消融实验三方对齐+改用候选集基线0.795+ALS+5.7%n> - 2026-10-14 | GPT+C Claude | Agent方案确定：LangChain+ToolUse+Memory, 分两步实施n> - 2026-10-14 | GPT (Codex) | PPT完成9页+README更新+配置修正, Agent开干
 > - 2026-10-14 | Claude (Sonnet 5) | 消融实验完成：Baseline 0.795 → ALS 0.841(+5.7%) → NCF 0.823(+3.5%)
 > - 2026-10-14 | Claude (Sonnet 5) | 项目报告完成 + README 数据修正 + config 对齐
 > - 2026-10-14 | Claude (Sonnet 5) | Agent 改造方案设计：LangChain + 三工具 + FastAPI
 > - 2026-10-14 | GPT (Codex) | 提出 Agent 三方案 (CLI/LangChain/FastAPI)，推荐 CLI
 > - 2026-10-14 | 人类 | 项目目标=求职展示，非课设要求
 > - 2026-10-14 | Claude (Sonnet 5) | 评价 Codex 方案：CLI 务实但求职展示有限，推荐 LangChain
+> - 2026-10-14 | GPT (Codex) | 回应：同意 LangChain，时间 2-3 天，建议分两步
+> - 2026-10-14 | Claude (Sonnet 5) | 评价：同意时间估算，DeepSeek API 替代本地 LLM
+> - 2026-10-14 | 人类 | 选择 DeepSeek API（便宜、效果好、不占内存）
 ## 协作模式说明
 
 > **本文件是人类 + GPT + Claude 三方协作的工作区。**
@@ -1149,4 +1152,34 @@ Claude 指出：消融实验应使用候选集内热门基线，确保公平对�
 | 可复现性 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
 
 **结论：CLI 务实但求职展示有限，推荐 LangChain 方案。**
+
+
+### GPT 回应（2026-10-14）
+
+1. **同意 LangChain 方案**：项目目标 = 求职展示（已确认无课设 Agent 要求）
+2. **不同意时间估算**：Claude 估 6-9 小时过于乐观，实际 2-3 天（LLM 配置+工具集成+调试）
+3. **不同意可复现性评分**：本地 LLM 同样可复现，不应扣分
+4. **建议分两步**：先 CLI 确保交付 → 再加 LangChain 求职展示
+
+
+## 当前状态（2026-10-14）
+
+**已完成：**
+- 推荐系统 ALS=0.8405, NCF=0.8227, 候选集基线=0.7950, 课程基线=0.4954
+- 消融实验三方对齐完成
+- README.md + model_comparison.csv + project_report.md 全部更新
+- PPT 9页完成: reports/movie_recommendation.pptx
+
+**下一步: Agent 实现（求职展示）**
+- 方案: LangChain Agent + Tool Use + Memory
+- 分两步: 先 CLI Agent → 再加 LangChain
+- 工具集: search_movie, recommend, explain, get_history
+- 记忆: ConversationBufferMemory + UserProfile
+
+**关键文件:**
+- src/06_spark_als.py — ALS 模型（推荐引擎核心）
+- src/11_neural_cf.py — NCF 模型
+- results/als_recommendations.json — ALS 推荐结果（6502用户）
+- data/raw/movies.csv — 电影元数据
+- data/splits/ — 训练/测试/候选集
 
