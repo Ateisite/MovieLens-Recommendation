@@ -96,7 +96,7 @@ def chat(user_input: str, user_id: int = None):
     if user_id:
         input_text = f"[用户ID: {user_id}] {user_input}"
     else:
-        input_text = user_input
+        input_text = "[用户ID: 1] " + user_input  # 默认用户 1
 
     result = agent.invoke({"messages": [HumanMessage(content=input_text)]})
 
