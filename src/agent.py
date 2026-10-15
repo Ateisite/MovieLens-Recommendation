@@ -12,6 +12,9 @@ from tools import search_movie, get_movie_details, recommend, get_user_history
 # 加载环境变量
 load_dotenv()
 
+# 用户记忆（简单版）
+user_preferences = {}
+
 
 def create_llm():
     """创建 LLM 实例"""
@@ -30,7 +33,7 @@ def create_llm():
         model=model,
         api_key=api_key,
         base_url=base_url,
-        temperature=0.7,
+        temperature=0.3,  # 降低温度，减少幻觉
         max_tokens=1024
     )
 
@@ -39,26 +42,31 @@ def create_llm():
 tools = [search_movie, get_movie_details, recommend, get_user_history]
 
 
-def create_agent():
+def create_agent(user_id: int = 1):
     """创建 Agent"""
     llm = create_llm()
     llm_with_tools = llm.bind_tools(tools)
 
-    # 系统提示词
-    system_prompt = """你是一个智能电影推荐助手。你可以使用以下工具：
+    # 系统提示词（严格限制幻觉）
+    system_prompt = f"""你是一个智能电影推荐助手。用户 ID 默认是 {user_id}。
 
-1. search_movie(title) - 按标题搜索电影
-2. get_movie_details(movie_id) - 获取电影详细信息
-3. recommend(user_id) - 为用户生成个性化推荐
-4. get_user_history(user_id) - 获取用户历史评分
+重要规则：
+1. 只基于工具返回的真实数据回答，绝对不要编造电影名称或信息
+2. 如果工具返回结果为空，如实告知用户
+3. 推荐时显示电影标题和类型
+
+你可以使用以下工具：
+- search_movie(title) - 按标题搜索电影
+- get_movie_details(movie_id) - 获取电影详细信息
+- recommend(user_id, genre=None) - 为用户生成个性化推荐（可选类型过滤）
+- get_user_history(user_id) - 获取用户历史评分
 
 工作流程：
-- 用户询问推荐时，先确认 user_id，然后调用 recommend
+- 用户要推荐时，调用 recommend(user_id, genre="类型")
 - 用户搜索电影时，调用 search_movie
 - 用户想了解电影详情时，调用 get_movie_details
-- 生成推荐后，用简洁语言解释推荐理由
 
-请用中文回答，语气友好自然。"""
+请用中文回答，语气简洁自然。只说工具返回的内容。"""
 
     def agent_node(state: MessagesState):
         messages = [SystemMessage(content=system_prompt)] + state["messages"]
@@ -88,20 +96,23 @@ def create_agent():
     return graph.compile()
 
 
-def chat(user_input: str, user_id: int = None):
+def chat(user_input: str, user_id: int = 1) -> str:
     """单次对话"""
-    agent = create_agent()
-
-    # 构建输入
-    if user_id:
-        input_text = f"[用户ID: {user_id}] {user_input}"
-    else:
-        input_text = "[用户ID: 1] " + user_input  # 默认用户 1
-
-    result = agent.invoke({"messages": [HumanMessage(content=input_text)]})
-
-    # 返回最后一条消息
+    agent = create_agent(user_id)
+    result = agent.invoke({"messages": [HumanMessage(content=user_input)]})
     return result["messages"][-1].content
+
+
+def update_preference(user_id: int, key: str, value: str):
+    """更新用户偏好记忆"""
+    if user_id not in user_preferences:
+        user_preferences[user_id] = {}
+    user_preferences[user_id][key] = value
+
+
+def get_preferences(user_id: int) -> dict:
+    """获取用户偏好"""
+    return user_preferences.get(user_id, {})
 
 
 def interactive_chat():
@@ -112,16 +123,10 @@ def interactive_chat():
     print("输入 'quit' 退出")
     print()
 
-    agent = create_agent()
+    user_id = 1  # 默认用户
+    agent = create_agent(user_id)
 
-    # 获取用户 ID
-    user_id = input("请输入你的用户 ID (1-6503): ").strip()
-    if not user_id.isdigit():
-        user_id = 1
-    else:
-        user_id = int(user_id)
-
-    print(f"\n你好，用户 {user_id}！请输入你的需求：\n")
+    print(f"你好！我是你的电影推荐助手。请输入你的需求：\n")
 
     while True:
         user_input = input("你: ").strip()
@@ -134,7 +139,7 @@ def interactive_chat():
 
         try:
             result = agent.invoke({
-                "messages": [HumanMessage(content=f"[用户ID: {user_id}] {user_input}")]
+                "messages": [HumanMessage(content=user_input)]
             })
             response = result["messages"][-1].content
             print(f"\n助手: {response}\n")

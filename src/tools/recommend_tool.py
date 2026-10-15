@@ -34,27 +34,43 @@ def _load_als_data():
 
 
 @tool
-def recommend(user_id: int) -> str:
+def recommend(user_id: int, genre: str = None) -> str:
     """为指定用户生成 Top-10 个性化推荐。
 
     Args:
         user_id: 用户 ID
+        genre: 电影类型过滤（如 "Horror", "Sci-Fi", "Action"），可选
 
     Returns:
-        推荐电影列表字符串
+        推荐电影列表字符串，包含标题、类型、分数
     """
     data = _load_als_data()
     recs = data["recommendations"].get(str(user_id))
+    movies_df = pd.read_csv(os.path.join(PROJECT_ROOT, "data", "raw", "movies.csv"))
+    movie_genres = movies_df.set_index("movieId")["genres"].to_dict()
 
     if not recs:
         return f"用户 {user_id} 没有推荐结果"
 
-    output = [f"为用户 {user_id} 推荐：\n"]
+    # 按类型过滤
+    if genre:
+        filtered_recs = []
+        for rec in recs:
+            movie_id = rec["movieId"]
+            genres = movie_genres.get(movie_id, "")
+            if genre.lower() in genres.lower():
+                filtered_recs.append(rec)
+        if not filtered_recs:
+            return f"用户 {user_id} 没有 {genre} 类型的推荐"
+        recs = filtered_recs
+
+    output = [f"为用户 {user_id} 推荐（{genre or '全部类型'}）：\n"]
     for i, rec in enumerate(recs[:10], 1):
         movie_id = rec["movieId"]
         title = data["movies"].get(movie_id, f"电影{movie_id}")
+        genres = movie_genres.get(movie_id, "未知")
         score = rec.get("score", 0)
-        output.append(f"{i}. {title} (ID: {movie_id}, 分数: {score:.4f})")
+        output.append(f"{i}. {title} | 类型: {genres} | 分数: {score:.4f}")
 
     return "\n".join(output)
 
