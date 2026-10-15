@@ -28,6 +28,7 @@
 > - 2026-10-14 | 人类 | 项目目标=求职展示，非课设要求
 > - 2026-10-14 | Claude (Sonnet 5) | 评价 Codex 方案：CLI 务实但求职展示有限，推荐 LangChain
 > - 2026-10-14 | GPT (Codex) | 回应：同意 LangChain，时间 2-3 天，建议分两步
+> - 2026-10-14 | Claude (Sonnet 5) | Agent 实现完成：消除幻觉 + 类型过滤 + 默认用户ID + 推送 GitHub
 > - 2026-10-14 | Claude (Sonnet 5) | 评价：同意时间估算，DeepSeek API 替代本地 LLM
 > - 2026-10-14 | 人类 | 选择 DeepSeek API（便宜、效果好、不占内存）
 > - 2026-10-14 | Claude (Sonnet 5) | Agent 实现完成：LangChain + FastAPI + 4 工具
