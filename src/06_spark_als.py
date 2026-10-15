@@ -65,6 +65,24 @@ def train_als_implicit(train_data, config, test_users=None, candidate_items=None
     train_time = time.time() - start_time
     print(f"训练时间: {train_time:.2f}s")
 
+    # 保存 Q 矩阵和映射（用于冷启动推荐）
+    ensure_dir("results")
+    item_factors = model.item_factors  # (n_items, rank)
+    np.save("results/als_item_factors.npy", item_factors)
+
+    # 保存 movieId 到 index 的映射
+    movie_id_to_idx = {int(mid): idx for idx, mid in enumerate(items)}
+    idx_to_movie_id = {idx: int(mid) for mid, idx in movie_id_to_idx.items()}
+    movie_map = {
+        "movie_id_to_idx": movie_id_to_idx,
+        "idx_to_movie_id": idx_to_movie_id,
+        "n_items": len(items),
+        "rank": als_config["rank"]
+    }
+    with open("results/als_movie_map.json", "w") as f:
+        json.dump(movie_map, f)
+    print(f"保存物品因子: {item_factors.shape}, 映射 {len(items)} 部电影")
+
     # 为测试集用户生成推荐（如果提供），否则随机采样
     if test_users is not None:
         target_users = [u for u in test_users if u in user_map]

@@ -29,6 +29,7 @@
 > - 2026-10-14 | Claude (Sonnet 5) | 评价 Codex 方案：CLI 务实但求职展示有限，推荐 LangChain
 > - 2026-10-14 | GPT (Codex) | 回应：同意 LangChain，时间 2-3 天，建议分两步
 > - 2026-10-14 | Claude (Sonnet 5) | Agent 实现完成：消除幻觉 + 类型过滤 + 默认用户ID + 推送 GitHub
+> - 2026-10-14 | GPT+C Claude | 冷启动方案：用 ALS 物品向量 Q 反推用户偏好，新用户输入喜欢电影即可推荐
 > - 2026-10-14 | Claude (Sonnet 5) | 评价：同意时间估算，DeepSeek API 替代本地 LLM
 > - 2026-10-14 | 人类 | 选择 DeepSeek API（便宜、效果好、不占内存）
 > - 2026-10-14 | Claude (Sonnet 5) | Agent 实现完成：LangChain + FastAPI + 4 工具
@@ -327,6 +328,76 @@ src/
 | **总计** | **6-9 小时** |
 
 **理由：** CF 方法在稀疏数据上有天花板，Agent 架构能力可独立展示。
+
+## 冷启动推荐方案（2026-10-14 设计）
+
+### 问题
+
+当前 ALS 只对训练集中的 6500 用户有效，新用户无法获得推荐。
+
+### 解决方案
+
+利用 ALS 训练好的**物品隐向量 Q**（19771 电影 × 200 维），反推新用户偏好：
+
+```
+新用户输入喜欢电影 [m1, m2, m3]
+    ↓
+查 Q 矩阵得到对应向量 → 加权平均 → 用户偏好向量 u
+    ↓
+scores = u × Q^T → 19771 部电影分数
+    ↓
+取 Top-10（排除已看）→ 推荐
+```
+
+### 实现步骤
+
+| 步骤 | 内容 | 文件 |
+|------|------|------|
+| 1 | 保存 ALS 训练好的 Q 矩阵 | 修改 `06_spark_als.py` |
+| 2 | 创建冷启动推荐工具 | `src/tools/coldstart_tool.py` |
+| 3 | 集成到 Agent | 更新 `src/agent.py` |
+| 4 | 测试验证 | 输入电影标题 → 推荐 |
+
+### 代码框架
+
+```python
+# src/tools/coldstart_tool.py
+import numpy as np
+import pandas as pd
+
+# 加载 Q 矩阵
+Q = np.load("results/als_item_factors.npy")
+movie_map = json.load(open("results/als_movie_map.json"))
+
+def coldstart_recommend(liked_movie_ids: list, top_k: int = 10):
+    """冷启动推荐：新用户输入喜欢电影 → 推荐相似电影"""
+    vectors = [Q[movie_map[str(mid)]] for mid in liked_movie_ids if str(mid) in movie_map]
+    user_vector = np.mean(vectors, axis=0)
+    scores = Q @ user_vector
+    # ... 返回 Top-K
+```
+
+### 用户交互流程
+
+```
+用户："我喜欢《星际穿越》《盗梦空间》"
+    ↓
+Agent: search_movie("星际穿越") → ID: 109487
+Agent: search_movie("盗梦空间") → ID: 59315
+Agent: coldstart_recommend([109487, 59315])
+    ↓
+返回推荐结果
+```
+
+### 时间估算
+
+| 任务 | 时间 |
+|------|------|
+| 保存 Q 矩阵 | 30 分钟 |
+| 冷启动工具 | 1 小时 |
+| 集成 Agent | 1 小时 |
+| 测试 | 30 分钟 |
+| **总计** | **3-4 小时** |
 
 
 
@@ -1200,4 +1271,24 @@ Claude 指出：消融实验应使用候选集内热门基线，确保公平对�
 **测试结果：** search_movie/recommend/get_user_history 全部通过
 
 **运行方式：** CLI: python src/agent.py | API: python src/api.py → :8000/docs
+
+
+### GPT 对 Claude 冷启动方案的分析（2026-10-15）
+
+**✅ 正确的部分：**
+- 核心思路对：用 Q 矩阵做冷启动是标准做法
+- 物品因子复用，不重新训练
+- 新用户向量 = 喜欢电影向量求平均再投影
+
+**⚠️ 有问题：**
+- Q 矩阵当前没保存，需要先改 06_spark_als.py 持久化模型
+- 数字不对（说19771电影，实际需跑完确认）
+- 没说怎么集成到 Agent（替换还是新增工具？）
+- 缺少错误处理（用户输入的电影不在训练集中？）
+
+**🎯 修正建议：**
+1. 先改训练代码保存 Q 矩阵 + item_map 映射
+2. 冷启动作为新工具 coldstart_recommend（不替换原 recommend）
+3. Agent 先问老用户/新用户，分发到不同工具
+4. 新用户输入标题 → search_movie 转 ID → coldstart_recommend
 
