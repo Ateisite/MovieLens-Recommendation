@@ -1,3 +1,4 @@
+
 # MovieLens 推荐系统项目
 
 > **修改记录：**
@@ -36,6 +37,8 @@
 > - 2026-10-14 | 人类 | 配置 LongCat-2.0 API Key
 > - 2026-10-14 | Claude (Sonnet 5) | Agent 测试通过：LongCat LLM + ALS 推荐成功
 > - 2026-10-15 | Claude (Sonnet 5) | 冷启动实现完成：Q矩阵(16570x200)保存 + coldstart_tool + 测试通过 + 推送 GitHub
+> - 2026-11-04 | Claude | 修正正反馈阈值：3.5 → 4（对齐任务书"评分不低于4分"要求），需重新生成数据划分与结果
+
 ## 协作模式说明
 
 > **本文件是人类 + GPT + Claude 三方协作的工作区。**

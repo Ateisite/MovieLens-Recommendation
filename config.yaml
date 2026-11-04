@@ -21,7 +21,7 @@ split:
   train_ratio: 0.8
   val_ratio: 0.1
   test_ratio: 0.1
-  pos_threshold: 3.5
+  pos_threshold: 4
   neg_sample_seed: 20260907
   neg_sample_count: 100
 
